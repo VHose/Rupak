@@ -1,8 +1,8 @@
 # algoritma.py
 
 # Fungsi untuk menghitung jarak terpendek menggunakan algoritma Dijkstra
-# Input: graf (representasi graf), start_node (node awal), kecepatan (kecepatan pengiriman)
-# Output: jarak (array jarak dari node awal ke semua node), rute (array 2 dimensi rute dari node awal ke semua node)
+# Input: start_node (node awal)
+# Output: dijkstra (array jarak dari node awal ke semua node)
 def hitung_dijkstra(start_node):
     # Menggunakan variabel global yang didefinisikan di luar fungsi
     global jarak, rute, n, node
@@ -55,7 +55,9 @@ def hitung_dijkstra(start_node):
                 break
             if y >= len(jarak[idx_visited]):
                 continue
-            if node[y] not in visited and jarak[idx_visited][y] != 999:
+                
+            # Hanya proses rute yang valid (jarak > 0, mengabaikan -1 atau 0)
+            if node[y] not in visited and jarak[idx_visited][y] > 0:
                 # Hitung akumulasi jarak alternatif
                 jarak_alternatif = dijkstra[idx_visited] + jarak[idx_visited][y]
                 
@@ -74,7 +76,7 @@ def hitung_dijkstra(start_node):
 # Output: list_paket_terurut (daftar paket yang diurutkan berdasarkan prioritas)
 # Fungsi untuk mengurutkan paket berdasarkan pendekatan greedy (kapasitas)
 def filter_volume():
-    global volume, sisa_kapasitas, idx_paket_tersedia, n, node, hasil_efisien, asal_awal
+    global volume, sisa_kapasitas, idx_paket_tersedia, n, node, hasil_efisien, asal
     
     # KOSONGKAN list setiap kali mencari paket baru agar tidak menumpuk
     idx_paket_tersedia.clear() 
@@ -83,12 +85,12 @@ def filter_volume():
         # 1. Cek kapasitas cukup
         # 2. Pastikan node belum pernah dikirim (tidak ada di hasil_efisien)
         # 3. Pastikan tidak mengirim paket ke titik awal (depot)
-        if volume[i] <= sisa_kapasitas and node[i] not in hasil_efisien and node[i] != asal_awal:
+        if volume[i] <= sisa_kapasitas and node[i] not in hasil_efisien and node[i] != asal:
             idx_paket_tersedia.append(i)
 
 # Fungsi untuk memfilter berdasarkan deadline
 def filter_deadline(hasil):
-    global node, kecepatan, deadline, idx_paket_tersedia, waktu_tempuh
+    global kecepatan, deadline, idx_paket_tersedia, waktu_tempuh
     
     # Kosongkan waktu tempuh lama
     waktu_tempuh.clear()
@@ -124,7 +126,7 @@ def filter_skor(hasil):
     return idx_paket_terpilih
 
 def main():
-    global node,asal,n
+    global node,asal,n,jarak,rute,kecepatan,kapasitas,deadline,prioritas,volume,sisa_kapasitas,idx_paket_tersedia,waktu_tempuh,hasil_efisien,asal_awal
     n = int(input("Masukkan Jumlah Node: "))
     print("Masukkan Nama Node: ")
     while True:
@@ -141,6 +143,7 @@ def main():
         asal = str(input("Masukkan Node Asal: "))
         if asal in node:
             print(f"Node asal : {asal}")
+            hasil_efisien.append(asal)
             print()
             break
         else:
@@ -167,9 +170,7 @@ def main():
             deadline.append(0.0) 
             volume.append(0) 
     
-    # if asal != node[0]:
-    #     idx_asal = node.index(asal) 
-    #     node[0], node[idx_asal] = node[idx_asal], node[0]
+   
     jarak = np.full((n, n), -1, dtype=int)
     np.fill_diagonal(jarak, 0)
     rute = [[None]*n for _ in range(n)] 
@@ -189,37 +190,41 @@ def main():
     for i in range(len(deadline)):
         print(f"Node {node[i]}: Deadline={deadline[i]}, Volume={volume[i]}, Prioritas={prioritas[i]}")
 
-    # while sisa_kapasitas > 0: 
-    #     print("\nMencari Rute Selanjutnya.... ")
-    #     hasil = hitung_dijkstra(asal)
+    while sisa_kapasitas > 0: 
+        print("\nMencari Rute Selanjutnya.... ")
+        hasil = hitung_dijkstra(asal)
         
-    #     # Panggil fungsi filter (tanpa mengirim parameter berlebih)
-    #     filter_volume()
-    #     filter_deadline(hasil)
+        # Panggil fungsi filter (tanpa mengirim parameter berlebih)
+        filter_volume()
+        filter_deadline(hasil)
         
-    #     # Jika tidak ada paket yang lolos filter volume & deadline, hentikan
-    #     if not idx_paket_tersedia:
-    #         print("-> Tidak ada paket lagi yang memenuhi kriteria kapasitas/deadline.")
-    #         break
+        # Jika tidak ada paket yang lolos filter volume & deadline, hentikan
+        if not idx_paket_tersedia:
+            print("-> Tidak ada paket lagi yang memenuhi kriteria kapasitas/deadline.")
+            break
             
-    #     # Pilih satu paket terbaik
-    #     idx_terpilih = filter_skor(hasil)
+        # Pilih satu paket terbaik
+        idx_terpilih = filter_skor(hasil)
         
-    #     if idx_terpilih is not None:
-    #         hasil_efisien.append(node[idx_terpilih])
-    #         sisa_kapasitas -= volume[idx_terpilih]
+        if idx_terpilih is not None:
+            hasil_efisien.append(node[idx_terpilih])
+            sisa_kapasitas -= volume[idx_terpilih]
             
-    #         # Update asal kurir ke node yang baru saja diantar
-    #         asal = node[idx_terpilih] # Sebelumnya error penulisan: node(idx_terpilih)
+            asal = node[idx_terpilih]
             
-    #         print(f"Kirim paket ke Node: {node[idx_terpilih]}")
-    #         print(f"Lewat Rute: {rute[idx_terpilih]}")
-    #     else:
-    #         break
+            print(f"Kirim paket ke Node: {node[idx_terpilih]}")
+            print(f"Lewat Rute: {rute[idx_terpilih]}")
+            print(f"Volume Paket: {volume[idx_terpilih]}")
+            print(f"Sisa Kapasitas: {sisa_kapasitas}")
+
+        else:
+            break
             
-    # print("\n--- RINGKASAN PENGANTARAN ---")
-    # print(f"Rute Pengantaran: {' -> '.join(hasil_efisien)}")
-    # print(f"Volume Paket yang dikirim: {kapasitas - sisa_kapasitas}")
+    print("\n--- RINGKASAN PENGANTARAN ---")
+    print(f"Rute Pengantaran: {' -> '.join(hasil_efisien)}")
+    print(f"Volume Paket yang dikirim: {kapasitas - sisa_kapasitas}")
+    print(f"Paket yang berhasil dikirim: {', '.join(hasil_efisien[1:])}")
+    print(f"Paket yang tidak dapat dikirim: {', '.join(node[i] for i in range(n) if node[i] not in hasil_efisien and node[i] != asal)}")
     
     return
 
