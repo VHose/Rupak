@@ -123,7 +123,7 @@ def filter_skor(hasil):
             skor_terbaik = skor
             idx_paket_terpilih = idx
             
-    return idx_paket_terpilih
+    return idx_paket_terpilih,skor_terbaik
 
 def main():
     global node,asal,n,jarak,rute,kecepatan,kapasitas,deadline,prioritas,volume,sisa_kapasitas,idx_paket_tersedia,waktu_tempuh,hasil_efisien,asal_awal
@@ -204,7 +204,7 @@ def main():
             break
             
         # Pilih satu paket terbaik
-        idx_terpilih = filter_skor(hasil)
+        idx_terpilih, skor_terbaik = filter_skor(hasil)
         
         if idx_terpilih is not None:
             hasil_efisien.append(node[idx_terpilih])
@@ -216,7 +216,7 @@ def main():
             print(f"Lewat Rute: {rute[idx_terpilih]}")
             print(f"Volume Paket: {volume[idx_terpilih]}")
             print(f"Sisa Kapasitas: {sisa_kapasitas}")
-
+            print(f"Skor Terbaik: {skor_terbaik}")
         else:
             break
             
