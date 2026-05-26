@@ -1,6 +1,8 @@
 # app.py
 import streamlit as st
-from algoritma import hitung_dijkstra, urutkan_paket_greedy
+from algoritma import hitung_dijkstra, filter_deadline, filter_volume, filter_skor
+
+node=[None]
 
 st.title("Simulasi Rute Kurir Paket Optimal 🚚")
 
@@ -9,6 +11,7 @@ st.sidebar.header("Pengaturan Simulasi")
 kapasitas_awal = st.sidebar.number_input("Kapasitas Maksimal Kendaraan", min_value=10, max_value=100)
 posisi_awal = st.sidebar.selectbox("Posisi Awal Kurir (Node)", [0, 1, 2, 3, 4, 5])
 
+st.
 # Tombol untuk menjalankan simulasi
 if st.button("Mulai Pengiriman"):
     st.write(f"Kurir berangkat dari Node {posisi_awal} dengan kapasitas {kapasitas_awal}...")
