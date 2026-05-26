@@ -197,6 +197,10 @@ def main():
         for j in range(n):
             print(f"{jarak[i][j]:4}", end=" ")
         print()
+    print()
+    print("Data Paket: ")
+    for i in range(len(deadline)):
+        print(f"Node {node[i]}: Deadline={deadline[i]}, Volume={volume[i]}, Prioritas={prioritas[i]}")
 
     # while True: 
     #     idx_terpilih = -1 
