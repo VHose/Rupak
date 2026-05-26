@@ -68,6 +68,11 @@ def hitung_dijkstra(start_node):
                     # Isi var rute global: rute menuju node ke-y adalah 
                     # rute ke node saat ini ditambah nama node ke-y itu sendiri
                     rute[y] = rute[idx_visited] + [node[y]]
+    print("Perhitungan dijkstra selesai.")
+    for i in range(n):
+        print(f"Jarak dari {start_node} ke {node[i]}: {dijkstra[i]}")
+        print(f"Rute: {rute[i]}")
+    
                     
     return dijkstra
 
@@ -77,7 +82,7 @@ def hitung_dijkstra(start_node):
 # Fungsi untuk mengurutkan paket berdasarkan pendekatan greedy (kapasitas)
 def filter_volume():
     global volume, sisa_kapasitas, idx_paket_tersedia, n, node, hasil_efisien, asal
-    
+    print("Memfilter paket berdasarkan kapasitas...")
     # KOSONGKAN list setiap kali mencari paket baru agar tidak menumpuk
     idx_paket_tersedia.clear() 
     
@@ -87,11 +92,16 @@ def filter_volume():
         # 3. Pastikan tidak mengirim paket ke titik awal (depot)
         if volume[i] <= sisa_kapasitas and node[i] not in hasil_efisien and node[i] != asal:
             idx_paket_tersedia.append(i)
+        else:
+            if node[i] != asal:
+                print(f"-> Paket di Node {node[i]} dihapus karena kapasitas ({volume[i]}) melebihi sisa kapasitas ({sisa_kapasitas}), atau sudah dikirim sebelumnya.")
+    print("filter_volume selesai.")            
+    print(f"Paket yang memenuhi kriteria kapasitas: {[node[i] for i in idx_paket_tersedia]}")
 
 # Fungsi untuk memfilter berdasarkan deadline
 def filter_deadline(hasil):
     global kecepatan, deadline, idx_paket_tersedia, waktu_tempuh
-    
+    print("Memfilter paket berdasarkan deadline...")
     # Kosongkan waktu tempuh lama
     waktu_tempuh.clear()
     kecepatan_per_menit = kecepatan / 60.0
@@ -102,13 +112,18 @@ def filter_deadline(hasil):
         
         if waktu > deadline_paket:
             idx_paket_tersedia.remove(idx)
+            print(f"-> Paket di Node {node[idx]} dihapus karena waktu tempuh ({waktu:.2f} menit) melebihi deadline ({deadline_paket:.2f} menit).")
         else:
             waktu_tempuh.append(waktu)
+    print("filter_deadline selesai.")
+    for i in idx_paket_tersedia:
+        print(f"Node {node[i]}: Deadline={deadline[i]}, Waktu Tempuh={waktu_tempuh[i] if i < len(waktu_tempuh) else 'N/A'}")
+  
 
 # Fungsi untuk mencari 1 paket dengan skor tertinggi
 def filter_skor(hasil):
     global idx_paket_tersedia, volume, prioritas, deadline, kecepatan
-    
+    print("Mencari paket dengan skor tertinggi...")
     kecepatan_per_menit = kecepatan / 60.0
     skor_terbaik = -9999
     idx_paket_terpilih = None
@@ -122,6 +137,7 @@ def filter_skor(hasil):
         if skor > skor_terbaik:
             skor_terbaik = skor
             idx_paket_terpilih = idx
+    print("filter_skor selesai.")
             
     return idx_paket_terpilih,skor_terbaik
 
