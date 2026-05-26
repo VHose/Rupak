@@ -9,7 +9,14 @@ def hitung_dijkstra(start_node):
     
     print("Mulai perhitungan dijkstra...")
     
+    # Pastikan ukuran data sesuai dengan panjang daftar node
+    n = len(node)
+    if len(jarak) != n or any(len(row) != n for row in jarak):
+        raise ValueError("Matriks jarak harus berukuran n x n sesuai jumlah node.")
+    
     # 1. Cari tahu indeks asli dari node asal
+    if start_node not in node:
+        raise ValueError(f"Node asal '{start_node}' tidak ditemukan.")
     idx_asal = node.index(start_node)
     
     # 2. Inisialisasi array penampung jarak dijkstra dengan nilai tak hingga (999)
@@ -44,6 +51,10 @@ def hitung_dijkstra(start_node):
         
         # 5. Perbarui jarak ke semua tetangga yang belum dikunjungi
         for y in range(n):
+            if idx_visited < 0 or idx_visited >= len(jarak):
+                break
+            if y >= len(jarak[idx_visited]):
+                continue
             if node[y] not in visited and jarak[idx_visited][y] != 999:
                 # Hitung akumulasi jarak alternatif
                 jarak_alternatif = dijkstra[idx_visited] + jarak[idx_visited][y]
@@ -61,99 +72,69 @@ def hitung_dijkstra(start_node):
 # Fungsi untuk mengurutkan paket berdasarkan pendekatan greedy
 # Input: list_paket (daftar paket yang tersedia), jarak (array jarak dari node awal ke semua node), deadline (array batas waktu pengiriman), volume_paket (array volume setiap paket), kapasitas (kapasitas maksimal kendaraan)
 # Output: list_paket_terurut (daftar paket yang diurutkan berdasarkan prioritas)
+# Fungsi untuk mengurutkan paket berdasarkan pendekatan greedy (kapasitas)
 def filter_volume():
-    global volume
-    # Logika seleksi paket berdasarkan 
-    for i in range(n):
-        if volume[i] < sisa_kapasitas:
-            idx_paket_tersedia.append(i)
-    return 
-
-# Fungsi untuk mengurutkan paket berdasarkan skor kombinasi (jarak, deadline, volume)
-# Input: list_paket (daftar paket yang tersedia), jarak (array jarak
-# dari node awal ke semua node), deadline (array batas waktu pengiriman), volume_paket (array volume setiap paket), kecepatan (kecepatan pengiriman)
-# Output: tujuan_terpilih (indeks paket yang dipilih untuk dikirimkan selanjutnya)
-def filter_deadline(hasil):
-    """
-    Memfilter paket di idx_paket_tersedia berdasarkan deadline.
-    - start_node : node asal kurir
-    - hasil : array jarak hasil dijkstra dari node asal ke semua node
-    """
-    global node, kecepatan, deadline, idx_paket_tersedia
-
+    global volume, sisa_kapasitas, idx_paket_tersedia, n, node, hasil_efisien, asal_awal
     
-    # Konversi kecepatan ke km/menit
+    # KOSONGKAN list setiap kali mencari paket baru agar tidak menumpuk
+    idx_paket_tersedia.clear() 
+    
+    for i in range(n):
+        # 1. Cek kapasitas cukup
+        # 2. Pastikan node belum pernah dikirim (tidak ada di hasil_efisien)
+        # 3. Pastikan tidak mengirim paket ke titik awal (depot)
+        if volume[i] <= sisa_kapasitas and node[i] not in hasil_efisien and node[i] != asal_awal:
+            idx_paket_tersedia.append(i)
+
+# Fungsi untuk memfilter berdasarkan deadline
+def filter_deadline(hasil):
+    global node, kecepatan, deadline, idx_paket_tersedia, waktu_tempuh
+    
+    # Kosongkan waktu tempuh lama
+    waktu_tempuh.clear()
     kecepatan_per_menit = kecepatan / 60.0
     
-    # Loop semua paket yang tersedia
-    for idx in list(idx_paket_tersedia):  # pakai list() supaya aman kalau dihapus
-        # Estimasi waktu tempuh ke node tujuan (menit)
+    for idx in list(idx_paket_tersedia):  
         waktu = hasil[idx] / kecepatan_per_menit
+        deadline_paket = deadline[idx] * 60  # Ubah jam ke menit agar setara
         
-        # Deadline paket (menit)
-        deadline_paket = deadline[idx]
-        
-        # Jika waktu tempuh lebih besar dari deadline, hapus paket dari daftar
         if waktu > deadline_paket:
             idx_paket_tersedia.remove(idx)
         else:
             waktu_tempuh.append(waktu)
-    return
 
-# jarak: array jarak dari node awal ke semua node
-# rute: array 2 dimensi rute dari node awal ke semua node
-# list_paket: daftar paket yang tersedia
-# kapasitas: kapasitas maksimal kendaraan
-# deadline: array batas waktu pengiriman (jam)
-# volume_paket: array volume setiap paket
-# kecepatan: kecepatan pengiriman (km/jam)
-# Output: integer indeks paket yang dipilih untuk dikirimkan selanjutnya
+# Fungsi untuk mencari 1 paket dengan skor tertinggi
 def filter_skor(hasil):
-    """
-    Seleksi paket berdasarkan skor kombinasi (deadline, volume, prioritas, waktu tempuh).
-    - start_node : node asal kurir
-    - hasil : array jarak hasil dijkstra dari node asal ke semua node
-    """
-    global node, idx_paket_tersedia, volume, prioritas, deadline, waktu_tempuh, kecepatan
+    global idx_paket_tersedia, volume, prioritas, deadline, kecepatan
     
-    # Konversi kecepatan ke km/menit
     kecepatan_per_menit = kecepatan / 60.0
+    skor_terbaik = -9999
+    idx_paket_terpilih = None
     
-    # Loop sampai tersisa 1 paket
-    while len(idx_paket_tersedia) > 1:
-        skor_terbaik = -1
-        idx_paket_terpilih = None
+    # Cukup cari nilai maksimum, tidak perlu pakai while loop dan remove
+    for idx in idx_paket_tersedia:
+        waktu = hasil[idx] / kecepatan_per_menit
+        # Normalisasi satuan jika perlu, contoh formula:
+        skor = (prioritas[idx] * 10) + (deadline[idx] / 100) - (volume[idx] / 10) - (waktu / 10)
         
-        for idx in idx_paket_tersedia:
-            # Hitung waktu tempuh (menit)
-            waktu = hasil[idx] / kecepatan_per_menit
+        if skor > skor_terbaik:
+            skor_terbaik = skor
+            idx_paket_terpilih = idx
             
-            # Ambil data deadline, volume, prioritas
-            dline = deadline[idx]
-            vol = volume[idx]
-            prio = prioritas[idx]  # 1 rendah, 2 sedang, 3 tinggi
-            
-            # Contoh formula skor: prioritas lebih dominan, lalu deadline lebih kecil lebih baik
-            skor = (prio * 10) + (dline / 100) - (vol / 10) - (waktu / 10)
-            
-            if skor > skor_terbaik:
-                skor_terbaik = skor
-                idx_paket_terpilih = idx
-        
-        # Hapus paket terpilih dari daftar
-        idx_paket_tersedia.remove(idx_paket_terpilih)
-        if idx_paket_tersedia:
-            return idx_paket_tersedia[0]
-        else:
-            return None
+    return idx_paket_terpilih
 
 def main():
     global node,asal,n
     n = int(input("Masukkan Jumlah Node: "))
     print("Masukkan Nama Node: ")
-    for i in range (n):
-        nama_node = str(input(f"Node-{i+1}: "))
-        node.append(nama_node)
+    while True:
+        nama_node = str(input(f"Node {len(node)+1}: "))
+        if nama_node in node:
+            print("Nama node sudah ada, masukkan nama lain!")
+        else:
+            node.append(nama_node)
+            if len(node) == n:
+                break
     print("Daftar Node: ", node)
     print()
     while True:
@@ -181,17 +162,23 @@ def main():
             deadline.append(dline)
             volume.append(vol)
             print()
+        else:
+            prioritas.append(0) 
+            deadline.append(0.0) 
+            volume.append(0) 
     
     # if asal != node[0]:
     #     idx_asal = node.index(asal) 
     #     node[0], node[idx_asal] = node[idx_asal], node[0]
-    jarak = np.zeros((n, n), dtype=int)
+    jarak = np.full((n, n), -1, dtype=int)
+    np.fill_diagonal(jarak, 0)
     rute = [[None]*n for _ in range(n)] 
-    for i in range (n):
-        print(f"Masukkan Adj Node {node[i]}:")
-        for j in range(i+1,n):
+    for i in range(n):
+        print(f"Masukkan Adj Node {node[i]} (-1 jika tidak terhubung):")
+        for j in range(i+1, n):
             jarak_tempuh = int(input(f"{node[i]} -> {node[j]} :"))
-            jarak[i][j] = jarak[j][i] = jarak_tempuh
+            if jarak_tempuh > 0:
+                jarak[i][j] = jarak[j][i] = jarak_tempuh
     print("Adjacency Matrix:")
     for i in range(n):
         for j in range(n):
@@ -202,26 +189,37 @@ def main():
     for i in range(len(deadline)):
         print(f"Node {node[i]}: Deadline={deadline[i]}, Volume={volume[i]}, Prioritas={prioritas[i]}")
 
-    # while True: 
-    #     idx_terpilih = -1 
-    #     if sisa_kapasitas > 0 and idx_terpilih != None: 
-    #         print("Menari Rute Selanjutnya.... ")
-    #         hasil = hitung_dijkstra(asal)
-    #         filter_volume(asal)
-    #         filter_deadline(asal,hasil)
-    #         idx_terpilih = filter_skor(asal,hasil)
+    # while sisa_kapasitas > 0: 
+    #     print("\nMencari Rute Selanjutnya.... ")
+    #     hasil = hitung_dijkstra(asal)
+        
+    #     # Panggil fungsi filter (tanpa mengirim parameter berlebih)
+    #     filter_volume()
+    #     filter_deadline(hasil)
+        
+    #     # Jika tidak ada paket yang lolos filter volume & deadline, hentikan
+    #     if not idx_paket_tersedia:
+    #         print("-> Tidak ada paket lagi yang memenuhi kriteria kapasitas/deadline.")
+    #         break
+            
+    #     # Pilih satu paket terbaik
+    #     idx_terpilih = filter_skor(hasil)
+        
+    #     if idx_terpilih is not None:
     #         hasil_efisien.append(node[idx_terpilih])
     #         sisa_kapasitas -= volume[idx_terpilih]
-    #         asal = node(idx_terpilih)
-    #         print(f"Kirim paket {node[idx_terpilih]}")
-    #         print(f"Lewat Rute {rute[idx_terpilih]}")
+            
+    #         # Update asal kurir ke node yang baru saja diantar
+    #         asal = node[idx_terpilih] # Sebelumnya error penulisan: node(idx_terpilih)
+            
+    #         print(f"Kirim paket ke Node: {node[idx_terpilih]}")
+    #         print(f"Lewat Rute: {rute[idx_terpilih]}")
     #     else:
     #         break
-    # print("Rute Pengantaran: ")
-    # for paket in hasil_efisien:
-    #     print(paket,end="")
-    # print()
-    # print(f"Volume Paket yang dikirim: {kapasitas-sisa_kapasitas}")
+            
+    # print("\n--- RINGKASAN PENGANTARAN ---")
+    # print(f"Rute Pengantaran: {' -> '.join(hasil_efisien)}")
+    # print(f"Volume Paket yang dikirim: {kapasitas - sisa_kapasitas}")
     
     return
 
