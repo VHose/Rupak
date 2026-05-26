@@ -150,24 +150,37 @@ def filter_skor(hasil):
 def main():
     global node,asal,n
     n = int(input("Masukkan Jumlah Node: "))
+    print("Masukkan Nama Node: ")
     for i in range (n):
-        nama_node = str(input("Nama Node: "))
+        nama_node = str(input(f"Node-{i+1}: "))
         node.append(nama_node)
+    print("Daftar Node: ", node)
+    print()
     while True:
         asal = str(input("Masukkan Node Asal: "))
         if asal in node:
             print(f"Node asal : {asal}")
+            print()
             break
         else:
             print("Node tidak ditemukan!")
     
-    kecepatan = int(input("Masukkan Kecepatan Truk(km/jam): "))
-    sisa_kapasitas = kapasitas = int(input("Kapasitas Maximal: "))
+    print("Masukkan data truk: ")
+    kecepatan = int(input("Kecepatan Truk(km/jam): "))
+    sisa_kapasitas = kapasitas = int(input("Kapasitas Max: "))
+    print()
     
     for i in range(n):
+        
         if node[i] != asal:
-            vol = int(input(f"Masukkan kapasitas paket {node[i]} (m^2): "))
+            print(f"Masukkan data paket untuk node {node[i]}:")
+            vol = int(input(f"kapasitas paket (m^2): "))
+            prio = int(input(f"prioritas paket (1 rendah, 2 sedang, 3 tinggi): "))
+            dline = float(input(f"deadline paket (jam): "))
+            prioritas.append(prio)
+            deadline.append(dline)
             volume.append(vol)
+            print()
     
     # if asal != node[0]:
     #     idx_asal = node.index(asal) 
@@ -177,28 +190,34 @@ def main():
     for i in range (n):
         print(f"Masukkan Adj Node {node[i]}:")
         for j in range(i+1,n):
-            jarak_tempuh = int(input(f"Masukkan jarak dari node {node[i]} ke {node[j]} :"))
+            jarak_tempuh = int(input(f"{node[i]} -> {node[j]} :"))
             jarak[i][j] = jarak[j][i] = jarak_tempuh
-    while True: 
-        idx_terpilih = -1 
-        if sisa_kapasitas > 0 and idx_terpilih != None: 
-            print("Menari Rute Selanjutnya.... ")
-            hasil = hitung_dijkstra(asal)
-            filter_volume(asal)
-            filter_deadline(asal,hasil)
-            idx_terpilih = filter_skor(asal,hasil)
-            hasil_efisien.append(node[idx_terpilih])
-            sisa_kapasitas -= volume[idx_terpilih]
-            asal = node(idx_terpilih)
-            print(f"Kirim paket {node[idx_terpilih]}")
-            print(f"Lewat Rute {rute[idx_terpilih]}")
-        else:
-            break
-    print("Rute Pengantaran: ")
-    for paket in hasil_efisien:
-        print(paket,end="")
-    print()
-    print(f"Volume Paket yang dikirim: {kapasitas-sisa_kapasitas}")
+    print("Adjacency Matrix:")
+    for i in range(n):
+        for j in range(n):
+            print(f"{jarak[i][j]:4}", end=" ")
+        print()
+
+    # while True: 
+    #     idx_terpilih = -1 
+    #     if sisa_kapasitas > 0 and idx_terpilih != None: 
+    #         print("Menari Rute Selanjutnya.... ")
+    #         hasil = hitung_dijkstra(asal)
+    #         filter_volume(asal)
+    #         filter_deadline(asal,hasil)
+    #         idx_terpilih = filter_skor(asal,hasil)
+    #         hasil_efisien.append(node[idx_terpilih])
+    #         sisa_kapasitas -= volume[idx_terpilih]
+    #         asal = node(idx_terpilih)
+    #         print(f"Kirim paket {node[idx_terpilih]}")
+    #         print(f"Lewat Rute {rute[idx_terpilih]}")
+    #     else:
+    #         break
+    # print("Rute Pengantaran: ")
+    # for paket in hasil_efisien:
+    #     print(paket,end="")
+    # print()
+    # print(f"Volume Paket yang dikirim: {kapasitas-sisa_kapasitas}")
     
     return
 
@@ -206,16 +225,16 @@ if __name__=='__main__':
     import numpy as np
     n:int
     asal:str
-    node = []
+    node :list[str] = []
     kecepatan :int 
     kapasitas :int
-    deadline = []
-    prioritas = []
-    volume = []
-    jarak : list[list[int]]
-    rute : list[list[str]]
+    deadline :list[float] = []
+    prioritas :list[int] = []
+    volume :list[int] = []
+    jarak : list[list[int]] = []
+    rute : list[list[str]] = []
     sisa_kapasitas :int
-    idx_paket_tersedia : list[int]
-    waktu_tempuh: list[int]
-    hasil_efisien: list[str]
+    idx_paket_tersedia : list[int] = []
+    waktu_tempuh: list[int] = []
+    hasil_efisien: list[str] = []
     main()
