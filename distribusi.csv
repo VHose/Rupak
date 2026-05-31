@@ -1,0 +1,10 @@
+tipe,node,volume,prioritas,deadline,kecepatan,kapasitas,A,B,C,D
+konfigurasi,A,,,,60,100,,,,
+paket,A,0,0,0.0,,,,,,,
+paket,B,15,2,1.5,,,,,,,
+paket,C,20,3,2.0,,,,,,,
+paket,D,10,1,1.0,,,,,,,
+jarak,A,,,,,,0,10,20,-1
+jarak,B,,,,,,10,0,15,30
+jarak,C,,,,,,20,15,0,25
+jarak,D,,,,,,-1,30,25,0
