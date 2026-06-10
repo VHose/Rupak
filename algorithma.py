@@ -14,6 +14,7 @@ sisa_kapasitas = 0
 idx_paket_tersedia = []
 waktu_tempuh = []
 hasil_efisien = []
+batas_waktu_operasional = 8.0
 
 
 def gabung_rute(daftar_node):
@@ -54,8 +55,8 @@ def hitung_dijkstra(start_node):    # Menggunakan variabel global yang didefinis
         raise ValueError(f"Node asal '{start_node}' tidak ditemukan.")
     idx_asal = node.index(start_node)
     
-    # 2. Inisialisasi array penampung jarak dijkstra dengan nilai tak hingga (999)
-    dijkstra = [999] * n
+    # 2. Inisialisasi array penampung jarak dijkstra dengan nilai tak hingga (float('inf'))
+    dijkstra = [float('inf')] * n
     dijkstra[idx_asal] = 0  # Jarak ke node asal sendiri adalah 0
     
     # 3. Lacak node yang sudah selesai diproses secara final
@@ -69,7 +70,7 @@ def hitung_dijkstra(start_node):    # Menggunakan variabel global yang didefinis
     # Lakukan pencarian hingga semua node masuk ke daftar visited
     while len(visited) < n:
         # Cari node dengan nilai terkecil di array 'dijkstra' yang belum di-visited
-        min_jarak = 999
+        min_jarak = float('inf')
         idx_visited = -1
         
         for i in range(n):
@@ -78,7 +79,7 @@ def hitung_dijkstra(start_node):    # Menggunakan variabel global yang didefinis
                 idx_visited = i
                 
         # Jika tidak ditemukan lagi node yang bisa dijangkau, keluar dari loop
-        if idx_visited == -1 or min_jarak == 999:
+        if idx_visited == -1 or min_jarak == float('inf'):
             break
             
         # Tandai node terpilih sebagai sudah dikunjungi
@@ -134,7 +135,7 @@ def filter_volume():
     print(f"Paket yang memenuhi kriteria kapasitas: {[node[i] for i in idx_paket_tersedia]}")
 
 # Fungsi untuk memfilter berdasarkan deadline
-def filter_deadline(hasil):
+def filter_deadline(hasil, waktu_akumulasi, batas_menit):
     global kecepatan, deadline, idx_paket_tersedia, waktu_tempuh
     print("Memfilter paket berdasarkan deadline...")
     # Kosongkan waktu tempuh lama
@@ -142,32 +143,48 @@ def filter_deadline(hasil):
     kecepatan_per_menit = kecepatan / 60.0
     
     for idx in list(idx_paket_tersedia):  
-        waktu = hasil[idx] / kecepatan_per_menit
+        if hasil[idx] == float('inf'):
+            idx_paket_tersedia.remove(idx)
+            print(f"-> Paket di Node {node[idx]} dihapus karena tidak dapat dijangkau dari lokasi saat ini.")
+            continue
+            
+        waktu_leg = hasil[idx] / kecepatan_per_menit
+        waktu_tiba = waktu_akumulasi + waktu_leg
         deadline_paket = deadline[idx] * 60  # Ubah jam ke menit agar setara
         
-        if waktu > deadline_paket:
+        if waktu_tiba > deadline_paket:
             idx_paket_tersedia.remove(idx)
-            print(f"-> Paket di Node {node[idx]} dihapus karena waktu tempuh ({waktu:.2f} menit) melebihi deadline ({deadline_paket:.2f} menit).")
+            print(f"-> Paket di Node {node[idx]} dihapus karena waktu tempuh akumulasi ({waktu_tiba:.2f} menit) melebihi deadline ({deadline_paket:.2f} menit).")
+        elif waktu_tiba > batas_menit:
+            idx_paket_tersedia.remove(idx)
+            print(f"-> Paket di Node {node[idx]} dihapus karena waktu tiba ({waktu_tiba:.2f} menit) melebihi batas operasional kurir ({batas_menit:.2f} menit).")
         else:
-            waktu_tempuh.append(waktu)
+            waktu_tempuh.append(waktu_tiba)
     print("filter_deadline selesai.")
     for i in idx_paket_tersedia:
-        print(f"Node {node[i]}: Deadline={deadline[i]}, Waktu Tempuh={waktu_tempuh[i] if i < len(waktu_tempuh) else 'N/A'}")
+        # Cari indeks di waktu_tempuh yang sesuai dengan posisi i di idx_paket_tersedia
+        try:
+            temp_idx = idx_paket_tersedia.index(i)
+            wt = waktu_tempuh[temp_idx]
+        except (ValueError, IndexError):
+            wt = "N/A"
+        print(f"Node {node[i]}: Deadline={deadline[i]}, Waktu Tiba={wt}")
   
 
 # Fungsi untuk mencari 1 paket dengan skor tertinggi
-def filter_skor(hasil):
+def filter_skor(hasil, waktu_akumulasi):
     global idx_paket_tersedia, volume, prioritas, deadline, kecepatan
     print("Mencari paket dengan skor tertinggi...")
     kecepatan_per_menit = kecepatan / 60.0
-    skor_terbaik = -9999
+    skor_terbaik = float('-inf')
     idx_paket_terpilih = None
     
     # Cukup cari nilai maksimum, tidak perlu pakai while loop dan remove
     for idx in idx_paket_tersedia:
-        waktu = hasil[idx] / kecepatan_per_menit
-        # Normalisasi satuan jika perlu, contoh formula:
-        skor = (prioritas[idx] * 10) + (deadline[idx] / 100) - (volume[idx] / 10) - (waktu / 10)
+        waktu_leg = hasil[idx] / kecepatan_per_menit
+        waktu_tiba = waktu_akumulasi + waktu_leg
+        # Deadline yang lebih cepat (kecil) diprioritaskan dengan tanda minus
+        skor = (prioritas[idx] * 10) - (deadline[idx] * 2) - (volume[idx] / 10) - (waktu_tiba / 10)
         
         if skor > skor_terbaik:
             skor_terbaik = skor
@@ -179,26 +196,38 @@ def filter_skor(hasil):
 
 def jalankan_simulasi():
     
-    global asal, sisa_kapasitas, idx_paket_tersedia, hasil_efisien, rute, node, n, kapasitas
+    global asal, sisa_kapasitas, idx_paket_tersedia, hasil_efisien, rute, node, n, kapasitas, kecepatan, batas_waktu_operasional
 
     n = len(node)
     depot_awal = hasil_efisien[0] if hasil_efisien else asal
     log = []
     detail_pengiriman = []
+    waktu_akumulasi = 0.0
+    kecepatan_per_menit = kecepatan / 60.0
+    batas_menit = batas_waktu_operasional * 60.0
+    rute_fisik_list = [depot_awal]
 
     while sisa_kapasitas > 0:
         hasil = hitung_dijkstra(asal)
         filter_volume()
-        filter_deadline(hasil)
+        filter_deadline(hasil, waktu_akumulasi, batas_menit)
 
         if not idx_paket_tersedia:
-            log.append("Tidak ada paket lagi yang memenuhi kriteria kapasitas/deadline.")
+            log.append("Tidak ada paket lagi yang memenuhi kriteria kapasitas/deadline/batas operasional.")
             break
 
-        idx_terpilih, skor_terbaik = filter_skor(hasil)
+        idx_terpilih, skor_terbaik = filter_skor(hasil, waktu_akumulasi)
 
         if idx_terpilih is None:
             break
+
+        # Reconstruksi rute fisik kaki ini
+        rute_leg = rute[idx_terpilih]
+        if len(rute_leg) > 1:
+            rute_fisik_list.extend(rute_leg[1:])
+
+        waktu_leg = hasil[idx_terpilih] / kecepatan_per_menit
+        waktu_akumulasi += waktu_leg
 
         hasil_efisien.append(node[idx_terpilih])
         sisa_kapasitas -= volume[idx_terpilih]
@@ -209,6 +238,8 @@ def jalankan_simulasi():
             "volume": volume[idx_terpilih],
             "skor": round(skor_terbaik, 2),
             "jarak": hasil[idx_terpilih],
+            "waktu_leg": round(waktu_leg, 1),
+            "waktu_tiba": round(waktu_akumulasi, 1),
         })
 
         asal = node[idx_terpilih]
@@ -222,13 +253,18 @@ def jalankan_simulasi():
         if node[i] not in hasil_efisien and node[i] != depot_awal:
             paket_gagal.append(node[i])
 
+    total_jarak = sum(item["jarak"] for item in detail_pengiriman)
+
     return {
-        "rute_pengantaran": gabung_rute(hasil_efisien),        "volume_terkirim": kapasitas - sisa_kapasitas,
+        "rute_pengantaran": gabung_rute(hasil_efisien),
+        "rute_fisik": gabung_rute(rute_fisik_list),
+        "volume_terkirim": kapasitas - sisa_kapasitas,
         "sisa_kapasitas": sisa_kapasitas,
         "paket_berhasil": paket_berhasil,
         "paket_gagal": paket_gagal,
         "detail": detail_pengiriman,
         "log": log,
+        "total_jarak": total_jarak,
     }
 
 
@@ -267,7 +303,7 @@ def main():
         
         if node[i] != asal:
             print(f"Masukkan data paket untuk node {node[i]}:")
-            vol = int(input(f"kapasitas paket (m^2): "))
+            vol = int(input(f"berat paket (kg): "))
             prio = int(input(f"prioritas paket (1 rendah, 2 sedang, 3 tinggi): "))
             dline = float(input(f"deadline paket (jam): "))
             prioritas.append(prio)

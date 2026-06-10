@@ -77,6 +77,10 @@ def filter_deadline(hasil):
     kecepatan_per_menit = kecepatan / 60.0
 
     for idx in list(idx_paket_tersedia):
+        if hasil[idx] >= 999:
+            idx_paket_tersedia.remove(idx)
+            continue
+            
         waktu = hasil[idx] / kecepatan_per_menit
         deadline_paket = deadline[idx] * 60
 
@@ -95,7 +99,7 @@ def filter_skor(hasil):
 
     for idx in idx_paket_tersedia:
         waktu = hasil[idx] / kecepatan_per_menit
-        skor = (prioritas[idx] * 10) + (deadline[idx] / 100) - (volume[idx] / 10) - (waktu / 10)
+        skor = (prioritas[idx] * 10) - (deadline[idx] * 2) - (volume[idx] / 10) - (waktu / 10)
 
         if skor > skor_terbaik:
             skor_terbaik = skor
@@ -143,6 +147,8 @@ def jalankan_simulasi():
         if node[i] not in hasil_efisien and node[i] != hasil_efisien[0]
     ]
 
+    total_jarak = sum(item["jarak"] for item in detail_pengiriman)
+
     return {
         "rute_pengantaran": " -> ".join(hasil_efisien),
         "volume_terkirim": kapasitas - sisa_kapasitas,
@@ -151,6 +157,7 @@ def jalankan_simulasi():
         "paket_gagal": paket_gagal,
         "detail": detail_pengiriman,
         "log": log,
+        "total_jarak": total_jarak,
     }
 
 
@@ -190,7 +197,7 @@ def main():
     for i in range(n):
         if node[i] != asal:
             print(f"Masukkan data paket untuk node {node[i]}:")
-            vol = int(input("kapasitas paket (m^2): "))
+            vol = int(input("berat paket (kg): "))
             prio = int(input("prioritas paket (1 rendah, 2 sedang, 3 tinggi): "))
             dline = float(input("deadline paket (jam): "))
             prioritas.append(prio)

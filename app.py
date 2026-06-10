@@ -313,7 +313,7 @@ if parsed_nodes != st.session_state.nodes:
 # Vehicle Settings
 st.sidebar.subheader("🚚 Pengaturan Truk")
 st.session_state.kapasitas = st.sidebar.number_input(
-    "Kapasitas Maksimal (m³)",
+    "Kapasitas Maksimal (kg)",
     min_value=10,
     max_value=500,
     value=st.session_state.kapasitas,
@@ -397,7 +397,7 @@ with tab1:
             package_rows.append({
                 "Node": n,
                 "Tipe": "🚩 Start Node (Asal)" if is_start else "📦 Penerima Paket",
-                "Volume Paket (m³)": 0 if is_start else st.session_state.paket_data['volume'].get(n, 10),
+                "Berat Paket (kg)": 0 if is_start else st.session_state.paket_data['volume'].get(n, 10),
                 "Prioritas (1-3)": 0 if is_start else st.session_state.paket_data['prioritas'].get(n, 1),
                 "Deadline Paket (Jam)": 0.0 if is_start else st.session_state.paket_data['deadline'].get(n, 1.0)
             })
@@ -409,7 +409,7 @@ with tab1:
             df_packages,
             disabled=["Node", "Tipe"],
             column_config={
-                "Volume Paket (m³)": st.column_config.NumberColumn(min_value=0, max_value=st.session_state.kapasitas, step=1),
+                "Berat Paket (kg)": st.column_config.NumberColumn(min_value=0, max_value=st.session_state.kapasitas, step=1),
                 "Prioritas (1-3)": st.column_config.NumberColumn(min_value=1, max_value=3, step=1, help="1: Rendah, 2: Sedang, 3: Tinggi"),
                 "Deadline Paket (Jam)": st.column_config.NumberColumn(min_value=0.1, max_value=48.0, step=0.5, format="%.1f jam")
             },
@@ -524,7 +524,7 @@ with tab2:
                     <div class="timeline-title" style="color: #3B82F6;">Kurir Berangkat</div>
                     <p style="margin: 0; font-size: 0.95rem;">Kurir memulai perjalanan dari titik asal <strong>{st.session_state.start_node}</strong>.</p>
                     <div class="timeline-meta">
-                        <span>Kapasitas Truk: <strong>{st.session_state.kapasitas} m³</strong></span>
+                        <span>Kapasitas Truk: <strong>{st.session_state.kapasitas} kg</strong></span>
                         <span>Kecepatan Truk: <strong>{st.session_state.kecepatan} km/jam</strong></span>
                     </div>
                 </div>
@@ -551,8 +551,8 @@ with tab2:
                         <div class="timeline-meta">
                             <span>Jarak: <strong>{step['jarak']} km</strong></span>
                             <span>Waktu Tempuh: <strong>{waktu_menit:.1f} menit</strong></span>
-                            <span>Volume Paket: <strong>{step['volume_paket']} m³</strong></span>
-                            <span>Sisa Kapasitas: <strong>{step['sisa_kapasitas_sesudah']} m³</strong></span>
+                            <span>Berat Paket: <strong>{step['volume_paket']} kg</strong></span>
+                            <span>Sisa Kapasitas: <strong>{step['sisa_kapasitas_sesudah']} kg</strong></span>
                             <span>Prioritas: <strong class="tag-priority">{prio_str}</strong></span>
                             <span>Deadline: <strong>{deadline_val} jam</strong></span>
                             <span>Skor Kelayakan: <strong>{step['skor']:.2f}</strong></span>
@@ -581,8 +581,8 @@ with tab2:
                 "Rute Rincian (Dijkstra)": " ➔ ".join(step["rute_dilewati"]),
                 "Jarak Tempuh (km)": step["jarak"],
                 "Waktu Tempuh (Menit)": round((step["jarak"] / st.session_state.kecepatan) * 60, 1),
-                "Volume Diantar (m³)": step["volume_paket"],
-                "Sisa Kapasitas Truk (m³)": step["sisa_kapasitas_sesudah"],
+                "Berat Diantar (kg)": step["volume_paket"],
+                "Sisa Kapasitas Truk (kg)": step["sisa_kapasitas_sesudah"],
                 "Skor Seleksi Greedy": round(step["skor"], 2)
             }
             for idx, step in enumerate(langkah)

@@ -60,6 +60,7 @@ def reset_globals():
     alg.idx_paket_tersedia = []
     alg.waktu_tempuh = []
     alg.hasil_efisien = []
+    alg.batas_waktu_operasional = 8.0
 
 
 def buat_template_excel(jumlah_node: int = 20) -> bytes:
@@ -77,8 +78,9 @@ def buat_template_excel(jumlah_node: int = 20) -> bytes:
     df_adj = pd.DataFrame(adj, index=nodes, columns=nodes)
 
     df_paket = pd.DataFrame({
-        "Node": nodes,
-        "Volume (m2)": [0 if i == 0 else (i % 5) + 3 for i in range(jumlah_node)],
+        "Asal": ["A" for _ in range(jumlah_node)],
+        "Tujuan": nodes,
+        "Berat (kg)": [0 if i == 0 else (i % 5) + 3 for i in range(jumlah_node)],
         "Prioritas (1-3)": [0 if i == 0 else ((i % 3) + 1) for i in range(jumlah_node)],
         "Deadline (jam)": [0.0 if i == 0 else round(1.5 + (i % 6) * 0.5, 1) for i in range(jumlah_node)],
     })
@@ -86,8 +88,8 @@ def buat_template_excel(jumlah_node: int = 20) -> bytes:
     df_info = pd.DataFrame({
         "Petunjuk": [
             "1. Sheet 'Adjacency': isi jarak antar node. 0 = node sendiri, -1 = tidak terhubung, >0 = jarak (km).",
-            "2. Sheet 'Paket': isi data paket per node. Node asal/deposit: Volume=0, Prioritas=0, Deadline=0.",
-            "3. Node asal/deposit = A (baris pertama). Pilih depot di sidebar aplikasi.",
+            "2. Sheet 'Paket': isi data paket. Asal = Depot asal pengiriman paket (default: A). Tujuan = Node tujuan paket.",
+            "3. Untuk baris Depot Asal sendiri (Tujuan = A): Berat=0, Prioritas=0, Deadline=0.",
             "4. Matriks adjacency harus simetris (jarak A->B = B->A).",
             "5. Template berisi 20 lokasi: A s/d T.",
         ]
@@ -103,8 +105,8 @@ def buat_template_excel(jumlah_node: int = 20) -> bytes:
 
 
 def pastikan_template_ada():
-    if not TEMPLATE_PATH.exists():
-        TEMPLATE_PATH.write_bytes(buat_template_excel(20))
+    # Selalu timpa template agar format kolom terupdate
+    TEMPLATE_PATH.write_bytes(buat_template_excel(20))
 
 
 def baca_excel(file) -> dict:
@@ -137,8 +139,8 @@ def baca_excel(file) -> dict:
         df_paket = pd.read_excel(xls, sheet_name="Paket")
         df_paket.columns = [str(c).strip().lower() for c in df_paket.columns]
 
-        col_node = next((c for c in df_paket.columns if "node" in c), None)
-        col_vol = next((c for c in df_paket.columns if "volume" in c), None)
+        col_node = next((c for c in df_paket.columns if "tujuan" in c or "node" in c), None)
+        col_vol = next((c for c in df_paket.columns if "volume" in c or "berat" in c), None)
         col_prio = next((c for c in df_paket.columns if "prioritas" in c), None)
         col_deadline = next((c for c in df_paket.columns if "deadline" in c), None)
 
@@ -167,7 +169,7 @@ def baca_excel(file) -> dict:
     }
 
 
-def set_data_algoritma(nodes, jarak, volume, prioritas, deadline, asal, kecepatan, kapasitas):
+def set_data_algoritma(nodes, jarak, volume, prioritas, deadline, asal, kecepatan, kapasitas, batas_waktu_operasional):
     reset_globals()
     alg.n = len(nodes)
     alg.node = nodes
@@ -180,6 +182,7 @@ def set_data_algoritma(nodes, jarak, volume, prioritas, deadline, asal, kecepata
     alg.kapasitas = kapasitas
     alg.sisa_kapasitas = kapasitas
     alg.hasil_efisien = [asal]
+    alg.batas_waktu_operasional = batas_waktu_operasional
 
 
 def tampilkan_matriks(jarak, nodes):
@@ -446,7 +449,7 @@ def tampilkan_info_node(node, nodes, jarak, asal, volume, prioritas, deadline, h
 
     if node != asal and volume and prioritas is not None and deadline is not None:
         prio_label = {0: "-", 1: "Rendah", 2: "Sedang", 3: "Tinggi"}.get(prioritas[idx], str(prioritas[idx]))
-        st.markdown(f"**Volume:** {volume[idx]} m²")
+        st.markdown(f"**Berat:** {volume[idx]} kg")
         st.markdown(f"**Prioritas:** {prio_label}")
         st.markdown(f"**Deadline:** {deadline[idx]} jam")
 
@@ -558,6 +561,7 @@ def init_session():
     st.session_state.asal = "A"
     st.session_state.kecepatan = 40
     st.session_state.kapasitas = 50
+    st.session_state.batas_waktu_operasional = 8.0
     st.session_state.hasil_simulasi = None
     st.session_state.sim_run_done = False
     st.session_state.node_terpilih = None
@@ -663,6 +667,7 @@ def jalankan_simulasi_sidebar():
         asal,
         int(st.session_state.kecepatan),
         int(st.session_state.kapasitas),
+        float(st.session_state.batas_waktu_operasional),
     )
     st.session_state.hasil_simulasi = alg.jalankan_simulasi()
 
@@ -677,7 +682,12 @@ def sidebar_input():
     
     old_kapasitas = st.session_state.kapasitas
     new_kapasitas = st.sidebar.number_input(
-        "Kapasitas (m²)", min_value=1, value=int(st.session_state.kapasitas)
+        "Kapasitas (kg)", min_value=1, value=int(st.session_state.kapasitas)
+    )
+
+    old_batas_operasional = st.session_state.get("batas_waktu_operasional", 8.0)
+    new_batas_operasional = st.sidebar.number_input(
+        "Batas Operasional (jam)", min_value=1.0, max_value=24.0, value=float(old_batas_operasional), step=0.5
     )
 
     nodes = st.session_state.nodes
@@ -687,12 +697,13 @@ def sidebar_input():
     new_asal = st.sidebar.selectbox("Depot Asal", nodes, index=idx_asal)
 
     # Cek jika ada parameter yang berubah untuk langsung update rute
-    changed = (new_kecepatan != old_kecepatan) or (new_kapasitas != old_kapasitas) or (new_asal != old_asal)
+    changed = (new_kecepatan != old_kecepatan) or (new_kapasitas != old_kapasitas) or (new_asal != old_asal) or (new_batas_operasional != old_batas_operasional)
     
     if changed:
         st.session_state.kecepatan = new_kecepatan
         st.session_state.kapasitas = new_kapasitas
         st.session_state.asal = new_asal
+        st.session_state.batas_waktu_operasional = new_batas_operasional
         if st.session_state.get("sim_run_done"):
             try:
                 jalankan_simulasi_sidebar()
@@ -751,12 +762,19 @@ def sidebar_input():
     with tab_paket:
         sync_list_size()
         df_paket = pd.DataFrame({
-            "Node": st.session_state.nodes,
+            "Asal": [st.session_state.asal] * len(st.session_state.nodes),
+            "Tujuan": st.session_state.nodes,
             "Volume": st.session_state.volume,
             "Prioritas": st.session_state.prioritas,
             "Deadline": st.session_state.deadline,
         })
-        edited = st.data_editor(df_paket, num_rows="fixed", use_container_width=True, key="editor_paket")
+        edited = st.data_editor(
+            df_paket, 
+            num_rows="fixed", 
+            use_container_width=True, 
+            key="editor_paket",
+            disabled=["Asal", "Tujuan"]
+        )
         st.session_state.volume = edited["Volume"].astype(int).tolist()
         st.session_state.prioritas = edited["Prioritas"].astype(int).tolist()
         st.session_state.deadline = edited["Deadline"].astype(float).tolist()
@@ -835,14 +853,27 @@ def main():
     if hasil:
         st.divider()
         st.subheader("Hasil Simulasi")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Volume Terkirim", f"{hasil['volume_terkirim']} m²")
-        c2.metric("Sisa Kapasitas", f"{hasil['sisa_kapasitas']} m²")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Berat Terkirim", f"{hasil['volume_terkirim']} kg")
+        c2.metric("Sisa Kapasitas", f"{hasil['sisa_kapasitas']} kg")
         c3.metric("Paket Berhasil", len(hasil["paket_berhasil"]))
-        st.markdown(f"**Rute Pengantaran:** `{hasil['rute_pengantaran']}`")
+        c4.metric("Total Jarak", f"{hasil['total_jarak']} km")
+        
+        st.markdown(f"**Urutan Pengantaran Paket (Penerima):** `{hasil['rute_pengantaran']}`")
+        st.markdown(f"**Rute Fisik Perjalanan Kurir:** `{hasil.get('rute_fisik', hasil['rute_pengantaran'])}`")
 
         if hasil["detail"]:
-            st.dataframe(pd.DataFrame(hasil["detail"]), use_container_width=True)
+            df_detail = pd.DataFrame(hasil["detail"])
+            df_detail = df_detail.rename(columns={
+                "tujuan": "Tujuan",
+                "rute": "Rute Terpendek Leg",
+                "volume": "Berat Paket (kg)",
+                "skor": "Skor Kelayakan",
+                "jarak": "Jarak Leg (km)",
+                "waktu_leg": "Waktu Tempuh Leg (menit)",
+                "waktu_tiba": "Waktu Tiba Akumulatif (menit)"
+            })
+            st.dataframe(df_detail, use_container_width=True)
 
         col_ok, col_fail = st.columns(2)
         with col_ok:
