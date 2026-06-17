@@ -19,7 +19,13 @@ st.set_page_config(
 
 # Custom CSS untuk menyembunyikan sidebar dan memberikan styling bersih (clean design)
 st.markdown("""
+<div id="top-of-page"></div>
 <style>
+    /* Smooth Scroll */
+    html, body, [data-testid="stAppViewContainer"], .main {
+        scroll-behavior: smooth;
+    }
+    
     /* Sembunyikan Sidebar */
     [data-testid="sidebar"] {
         display: none;
@@ -125,7 +131,7 @@ st.markdown("""
         right: 24px;
         z-index: 9999;
         background-color: #1e293b;
-        color: #ffffff;
+        color: #ffffff !important;
         border: 1px solid #334155;
         padding: 10px 16px;
         border-radius: 6px;
@@ -134,6 +140,8 @@ st.markdown("""
         cursor: pointer;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         transition: background-color 0.2s, transform 0.2s;
+        display: inline-block;
+        text-decoration: none;
     }
     .scroll-to-top-btn:hover {
         background-color: #0f172a;
@@ -143,20 +151,7 @@ st.markdown("""
         transform: translateY(0);
     }
 </style>
-<button id="scrollTopBtn" class="scroll-to-top-btn">Ke Atas</button>
-<script>
-    setTimeout(function() {
-        var btn = document.getElementById("scrollTopBtn");
-        if (btn) {
-            btn.onclick = function() {
-                try { document.body.scrollIntoView({behavior: "smooth", block: "start"}); } catch(e){}
-                try { window.parent.document.body.scrollIntoView({behavior: "smooth", block: "start"}); } catch(e){}
-                try { document.querySelector(".main").scrollTo({top: 0, behavior: "smooth"}); } catch(e){}
-                try { window.parent.document.querySelector(".main").scrollTo({top: 0, behavior: "smooth"}); } catch(e){}
-            };
-        }
-    }, 500);
-</script>
+<a href="#top-of-page" target="_self" class="scroll-to-top-btn">Ke Atas</a>
 """, unsafe_allow_html=True)
 
 # Inisialisasi Sesi State
