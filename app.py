@@ -184,7 +184,9 @@ if "kapasitas" not in st.session_state:
 
 # State baru untuk waktu kerja kurir
 if "waktu_layanan" not in st.session_state:
-    st.session_state.waktu_layanan = 10
+    st.session_state.waktu_layanan = 5
+if "waktu_muat_depot" not in st.session_state:
+    st.session_state.waktu_muat_depot = 20
 if "jam_kerja_maks" not in st.session_state:
     st.session_state.jam_kerja_maks = 8
 if "jam_mulai" not in st.session_state:
@@ -248,6 +250,10 @@ def validate_data_state():
         asal_node = st.session_state.asal
         if asal_node not in node_list:
             return f"Node asal '{asal_node}' tidak ditemukan dalam daftar node paket.", "error"
+        if st.session_state.waktu_layanan < 0:
+            return "Waktu bongkar muat per paket tidak boleh negatif.", "error"
+        if st.session_state.waktu_muat_depot < 0:
+            return "Waktu muat/isi ulang depot tidak boleh negatif.", "error"
         if st.session_state.kecepatan <= 0:
             return "Kecepatan kendaraan harus lebih besar dari 0.", "error"
         if st.session_state.kapasitas <= 0:
@@ -274,6 +280,7 @@ def load_state_to_globals():
     algoritma.idx_paket_tersedia = []
     algoritma.waktu_tempuh = []
     algoritma.waktu_layanan = st.session_state.waktu_layanan
+    algoritma.waktu_muat_depot = st.session_state.waktu_muat_depot
     algoritma.jam_kerja_maks = st.session_state.jam_kerja_maks
 
 def get_node_name(i):
@@ -907,7 +914,7 @@ def render_animated_graph(nodes, jarak_matrix, asal_node, riwayat_langkah):
     components.html(html_code, height=530)
 
 
-def render_timeline(riwayat_langkah, asal_awal, jam_mulai, waktu_layanan):
+def render_timeline(riwayat_langkah, asal_awal, jam_mulai, waktu_layanan, waktu_muat_depot):
     timeline_items = []
     from datetime import datetime, timedelta
     
@@ -916,23 +923,25 @@ def render_timeline(riwayat_langkah, asal_awal, jam_mulai, waktu_layanan):
         return (t + timedelta(minutes=mins)).strftime("%H:%M")
         
     current_time = jam_mulai
+    departure_from_origin = add_minutes(current_time, waktu_muat_depot)
     
     # Titik Mulai
     timeline_items.append(
         "<div class=\"timeline-item\">"
         "<div class=\"timeline-marker origin\"></div>"
         "<div class=\"timeline-content\">"
-        f"<div class=\"timeline-title\">{current_time} | Titik Keberangkatan: {asal_awal}</div>"
+        f"<div class=\"timeline-title\">{current_time} - {departure_from_origin} | Titik Keberangkatan: {asal_awal}</div>"
         "<div class=\"timeline-time\">Waktu Keberangkatan | Akumulasi Jarak: 0.0 km</div>"
-        "<div class=\"timeline-details\">Kendaraan siap berangkat dari titik asal dengan kapasitas penuh.</div>"
+        f"<div class=\"timeline-details\">Pemuatan awal paket di depot selama {waktu_muat_depot} menit. Kendaraan siap berangkat dari titik asal dengan kapasitas penuh.</div>"
         "</div>"
         "</div>"
     )
+    current_time = departure_from_origin
     
     accum_distance = 0.0
     accum_time = 0.0
     delivery_count = 0
-    total_waktu_layanan_accum = 0.0
+    total_waktu_layanan_accum = waktu_muat_depot
     
     for idx, step in enumerate(riwayat_langkah, start=1):
         target = step["tujuan"]
@@ -959,11 +968,13 @@ def render_timeline(riwayat_langkah, asal_awal, jam_mulai, waktu_layanan):
             )
             marker_class = "delivery"
         else:
-            departure_time = arrival_time
-            title = f"{arrival_time} | Memuat Ulang di {target}"
+            departure_time = add_minutes(arrival_time, waktu_muat_depot)
+            total_waktu_layanan_accum += waktu_muat_depot
+            title = f"{arrival_time} - {departure_time} | Memuat Ulang di {target}"
             details = (
                 f"<b>Rute Perjalanan:</b> {rute_path}<br>"
                 "<b>Status:</b> Kembali ke titik asal untuk memuat ulang paket.<br>"
+                f"<b>Waktu Layanan (Pemuatan Kembali):</b> {waktu_muat_depot} menit<br>"
                 f"<b>Kapasitas Kendaraan Diisi Kembali:</b> {sisa} m³ (Penuh)<br>"
             )
             marker_class = "origin"
@@ -1534,7 +1545,7 @@ with tab1:
         # Konfigurasi Waktu Kerja Kurir
         st.markdown("<div style='font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 10px; margin-bottom: 10px;'>Konfigurasi Waktu Kerja Kurir</div>", unsafe_allow_html=True)
         
-        col_work1, col_work2, col_work3 = st.columns(3)
+        col_work1, col_work2, col_work3, col_work4 = st.columns(4)
         with col_work1:
             time_options = [f"{h:02d}:{m:02d}" for h in range(24) for m in (0, 15, 30, 45)]
             try:
@@ -1557,6 +1568,15 @@ with tab1:
                 key="work_service_time"
             )
         with col_work3:
+            new_waktu_muat_depot = st.number_input(
+                "Waktu Muat/Isi Ulang Depot (Menit):",
+                min_value=0,
+                max_value=120,
+                value=int(st.session_state.waktu_muat_depot),
+                step=5,
+                key="work_reload_time"
+            )
+        with col_work4:
             new_jam_maks = st.number_input(
                 "Maksimal Jam Kerja Kurir (Jam):",
                 min_value=1,
@@ -1622,6 +1642,7 @@ with tab1:
         # Simpan semua perubahan kembali ke session state secara dinamis
         st.session_state.jam_mulai = new_jam_mulai
         st.session_state.waktu_layanan = new_waktu_layanan
+        st.session_state.waktu_muat_depot = new_waktu_muat_depot
         st.session_state.jam_kerja_maks = new_jam_maks
         st.session_state.asal = new_asal
         st.session_state.kecepatan = new_kecepatan
@@ -1701,7 +1722,9 @@ with tab2:
             ]
             total_jarak = sum(step["jarak"] for step in riwayat_langkah)
             total_waktu_perjalanan = sum(step["waktu_tempuh"] for step in riwayat_langkah)
-            total_waktu_layanan = sum(1 for step in riwayat_langkah if step["volume_paket"] > 0) * st.session_state.waktu_layanan
+            num_deliveries = sum(1 for step in riwayat_langkah if step["volume_paket"] > 0)
+            num_reloads = sum(1 for step in riwayat_langkah if step["volume_paket"] == 0)
+            total_waktu_layanan = st.session_state.waktu_muat_depot + (num_deliveries * st.session_state.waktu_layanan) + (num_reloads * st.session_state.waktu_muat_depot)
             total_waktu_kerja = total_waktu_perjalanan + total_waktu_layanan
             
             # Hitung jam selesai
@@ -1815,7 +1838,7 @@ with tab2:
             
             # Timeline
             st.markdown("<div style='font-size: 14px; font-weight: 600; color: #1e293b; margin-top: 30px; margin-bottom: 15px;'>Timeline Detail Jadwal Kerja Kurir</div>", unsafe_allow_html=True)
-            st.markdown(render_timeline(riwayat_langkah, asal_awal, st.session_state.jam_mulai, st.session_state.waktu_layanan), unsafe_allow_html=True)
+            st.markdown(render_timeline(riwayat_langkah, asal_awal, st.session_state.jam_mulai, st.session_state.waktu_layanan, st.session_state.waktu_muat_depot), unsafe_allow_html=True)
             
             # Detail Table
             st.markdown("---")
