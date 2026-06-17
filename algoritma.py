@@ -21,6 +21,9 @@ rute = []              # Jalur terpendek hasil Dijkstra ke masing-masing node
 idx_paket_tersedia = []# Indeks paket yang memenuhi kriteria pengiriman berikutnya
 waktu_tempuh = []      # Waktu tempuh ke masing-masing node
 hasil_pengiriman = []  # Urutan rute pengiriman yang berhasil dilakukan
+waktu_layanan = 10     # Waktu bongkar muat/layanan per paket (menit)
+jam_kerja_maks = 8     # Batas maksimal jam kerja kurir (jam)
+
 
 def hitung_dijkstra(start_node):
     global jarak, rute, n, node
@@ -185,8 +188,12 @@ def tampil_data_paket():
 
 
 def proses_pengiriman():
-    global asal, sisa_kapasitas
+    global asal, sisa_kapasitas, waktu_layanan, jam_kerja_maks
     riwayat_langkah = []
+    
+    origin = asal  # Simpan titik asal keberangkatan awal
+    total_waktu_menit = 0.0
+    kecepatan_per_menit = kecepatan / 60 if kecepatan > 0 else 1.0
     
     while sisa_kapasitas > 0:
 
@@ -194,7 +201,44 @@ def proses_pengiriman():
         filter_volume()
         filter_deadline(hasil)
 
+        for idx in list(idx_paket_tersedia):
+            waktu_perjalanan = hasil[idx] / kecepatan_per_menit
+            waktu_estimasi = total_waktu_menit + waktu_perjalanan + waktu_layanan
+            if waktu_estimasi > jam_kerja_maks * 60:
+                idx_paket_tersedia.remove(idx)
+
         if not idx_paket_tersedia:
+            # Cek apakah ada paket yang belum terkirim dan sisa waktu kerja mencukupi untuk kembali ke origin (reload)
+            has_undelivered = any(node[i] not in hasil_pengiriman and node[i] != origin for i in range(n))
+            if has_undelivered and asal != origin:
+                idx_origin = node.index(origin)
+                dist_to_origin = hasil[idx_origin]
+                time_to_origin = (dist_to_origin / kecepatan) * 60 if kecepatan > 0 else 0.0
+                
+                # Cek apakah perjalanan pulang ke origin masih dalam batas jam kerja
+                if total_waktu_menit + time_to_origin <= jam_kerja_maks * 60:
+                    total_waktu_menit += time_to_origin
+                    sisa_kapasitas = kapasitas
+                    
+                    langkah_reload = {
+                        "tujuan": origin,
+                        "rute": list(rute[idx_origin]),
+                        "volume_paket": 0,
+                        "sisa_kapasitas": sisa_kapasitas,
+                        "skor": 0.0,
+                        "asal_sebelumnya": asal,
+                        "jarak": dist_to_origin,
+                        "waktu_tempuh": time_to_origin,
+                        "waktu_layanan": 0,
+                        "waktu_kumulatif": total_waktu_menit
+                    }
+                    riwayat_langkah.append(langkah_reload)
+                    hasil_pengiriman.append(origin)
+                    
+                    print(f"\nKembali ke {origin} untuk memuat ulang paket (Reload)")
+                    asal = origin
+                    continue  # Lanjutkan loop dari titik asal dengan kapasitas penuh
+            
             print("\nTidak ada paket yang bisa dikirim lagi.")
             break
 
@@ -209,7 +253,11 @@ def proses_pengiriman():
 
         # Simpan info langkah untuk visualisasi web
         jarak_tempuh = hasil[idx_terpilih]
-        waktu_menit = (jarak_tempuh / kecepatan) * 60
+        waktu_menit = (jarak_tempuh / kecepatan) * 60 if kecepatan > 0 else 0.0
+        
+        # Tambah waktu perjalanan dan waktu layanan bongkar muat
+        total_waktu_menit += waktu_menit + waktu_layanan
+        
         langkah = {
             "tujuan": tujuan,
             "rute": list(rute[idx_terpilih]),
@@ -218,7 +266,9 @@ def proses_pengiriman():
             "skor": skor,
             "asal_sebelumnya": asal,
             "jarak": jarak_tempuh,
-            "waktu_tempuh": waktu_menit
+            "waktu_tempuh": waktu_menit,
+            "waktu_layanan": waktu_layanan,
+            "waktu_kumulatif": total_waktu_menit
         }
         riwayat_langkah.append(langkah)
 
@@ -786,4 +836,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main()
