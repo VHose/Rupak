@@ -959,7 +959,7 @@ def render_timeline(riwayat_langkah, asal_awal, jam_mulai, waktu_layanan, waktu_
             delivery_count += 1
             departure_time = add_minutes(arrival_time, waktu_layanan)
             total_waktu_layanan_accum += waktu_layanan
-            title = f"{arrival_time} - {departure_time} | Pengiriman {delivery_count}: Node {target}"
+            title = f"{current_time} - {departure_time} | Pengiriman {delivery_count}: Node {target}"
             details = (
                 f"<b>Rute Perjalanan:</b> {rute_path}<br>"
                 f"<b>Paket Terkirim:</b> {vol} m³ (Skor Kriteria: {round(skor, 2)})<br>"
@@ -970,7 +970,7 @@ def render_timeline(riwayat_langkah, asal_awal, jam_mulai, waktu_layanan, waktu_
         else:
             departure_time = add_minutes(arrival_time, waktu_muat_depot)
             total_waktu_layanan_accum += waktu_muat_depot
-            title = f"{arrival_time} - {departure_time} | Memuat Ulang di {target}"
+            title = f"{current_time} - {departure_time} | Memuat Ulang di {target}"
             details = (
                 f"<b>Rute Perjalanan:</b> {rute_path}<br>"
                 "<b>Status:</b> Kembali ke titik asal untuk memuat ulang paket.<br>"
